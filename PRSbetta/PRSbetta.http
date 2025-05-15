@@ -1,0 +1,6 @@
+@PRSbetta_HostAddress = http://localhost:5227
+
+GET {{PRSbetta_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
