@@ -56,7 +56,7 @@ namespace PRSbetta.Controllers
         ////                       li.Request.Status != "REJECTED" ||
         ////                       li.Request.Status != "APPROVED")
         ////        .ToListAsync();
-            
+
         ////    if (!lineItems.Any())
         ////    {
         ////        return NotFound();
@@ -78,6 +78,7 @@ namespace PRSbetta.Controllers
         // string = " R+(today "MMDDYY" from DateTime) +  0000 (need ++ from last req#)"
         // " R+((DateTime.Now)->string)+ (count req# +1)
         [HttpPost] //api/Requests/<newRequestId> 
+             
         public async Task<IActionResult> CreateRequest(Request newRequest)
         {
             if (newRequest == null)
@@ -98,6 +99,44 @@ namespace PRSbetta.Controllers
             return CreatedAtAction(nameof(GetRequest), new { id = newRequest.Id }, newRequest);
             // Client gets a 201, Header is created /api/requests/123 
         }
+
+
+
+        //private string 
+        //    getNextRequestNumber()
+        //{
+        //    Start with "R" + today's date string requestNbr = "R" + DateOnly.FromDateTime(DateTime.Now).ToString("yyMMdd");
+
+        //string? maxReqNbr = _context.Requests
+        //                    .Where(r => r.RequestNumber.StartsWith(requestNbr))
+        //                    .Max(r => r.RequestNumber);
+
+        //string reqNbr = !string.IsNullOrEmpty(maxReqNbr)
+        //    ? (int.Parse(maxReqNbr.Substring(7)) + 1).ToString().PadLeft(4, '0')
+        //    : "0001"; // Start fresh if nothing exists
+
+        //return requestNbr + reqNbr;
+
+
+
+
+
+
+
+
+
+
+        //    {
+        //    newRequest.Status = "NEW";
+        //    newRequest.Total = 0;
+        //    newRequest.RequestNumber = "R00000000000";
+        //    newRequest.SubmittedDate = DateTime.Now;
+        //    _context.Requests.Add(newRequest);
+        //    await _context.SaveChangesAsync();
+        //    return CreatedAtAction("GetRequest", new { id = newRequest.Id }, newRequest);
+
+        //}
+
 
 
         // DELETE: api/Requests/5
