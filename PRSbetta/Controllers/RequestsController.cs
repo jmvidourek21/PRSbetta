@@ -67,6 +67,16 @@ namespace PRSbetta.Controllers
         ////    return Ok(total);
         ////}
 
+        [HttpGet("{id}")]
+        public async Task<ActionResult<Request>> GetRequestById(int id)
+        {
+            var request = await _context.Requests.FindAsync(id);
+
+            if (request == null)
+                return NotFound();
+
+            return request;
+        }
 
         // POST: api/Requests
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
@@ -77,28 +87,71 @@ namespace PRSbetta.Controllers
         // R is constant, so ....
         // string = " R+(today "MMDDYY" from DateTime) +  0000 (need ++ from last req#)"
         // " R+((DateTime.Now)->string)+ (count req# +1)
-        [HttpPost] //api/Requests/<newRequestId> 
-             
-        public async Task<IActionResult> CreateRequest(Request newRequest)
+
+        [HttpPost]
+        public async Task<IActionResult> CreateRequest(Request request)
         {
-            if (newRequest == null)
-                return BadRequest();
+            var now = DateTime.Now;
 
-            string todayPrefix = "R" + (DateOnly.FromDateTime(DateTime.Now).ToString("yyMMdd"));
+            var generator = new RequestNumberGenerator(_context);
+            request.CreatedOn = now;
+            request.RequestNumber = await generator.GenerateNextRequestNumberAsync(now);
 
-            int newReqNum = await _context.Requests
-                .CountAsync(r => r.RequestNumber.StartsWith(todayPrefix));
-
-            string sequence = (newReqNum + 1).ToString("D4");
-            newRequest.RequestNumber = todayPrefix + sequence;
-
-            // Add and save the new request
-            _context.Requests.Add(newRequest);
+            _context.Requests.Add(request);
             await _context.SaveChangesAsync();
 
-            return CreatedAtAction(nameof(GetRequest), new { id = newRequest.Id }, newRequest);
-            // Client gets a 201, Header is created /api/requests/123 
+            return CreatedAtAction(nameof(GetRequestById), new { id = request.Id }, request);
         }
+
+        public class RequestNumberGenerator
+        {
+            private readonly PrsbettaContext _context;
+
+            public RequestNumberGenerator(PrsbettaContext context)
+            {
+                _context = context;
+            }
+
+            public async Task<string> GenerateNextRequestNumberAsync(DateTime requestDate)
+            {
+                var datePrefix = requestDate.ToString("yyMMdd"); // YYMMDD
+                var prefix = $"R{datePrefix}";
+
+                // Count how many requests exist for the same date
+                var count = await _context.Requests
+                    .CountAsync(r => r.CreatedOn.Date == requestDate.Date);
+
+                int sequence = count + 1;
+                string sequenceStr = sequence.ToString("D4"); // pad to 4 digits
+
+                return $"{prefix}{sequenceStr}";
+            }
+        }
+
+        
+
+        //[HttpPost] //api/Requests/<newRequestId> 
+
+        //public async Task<IActionResult> CreateRequest(Request newRequest)
+        //{
+        //    if (newRequest == null)
+        //        return BadRequest();
+
+        //    string todayPrefix = "R" + (DateOnly.FromDateTime(DateTime.Now).ToString("yyMMdd"));
+
+        //    int newReqNum = await _context.Requests
+        //        .CountAsync(r => r.RequestNumber.StartsWith(todayPrefix));
+
+        //    string sequence = (newReqNum + 1).ToString("D4");
+        //    newRequest.RequestNumber = todayPrefix + sequence;
+
+        //    // Add and save the new request
+        //    _context.Requests.Add(newRequest);
+        //    await _context.SaveChangesAsync();
+
+        //    return CreatedAtAction(nameof(GetRequest), new { id = newRequest.Id }, newRequest);
+        //    // Client gets a 201, Header is created /api/requests/123 
+        //}
 
 
 
