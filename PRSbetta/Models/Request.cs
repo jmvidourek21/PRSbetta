@@ -62,8 +62,8 @@ public partial class Request
     //[InverseProperty("Requests")]
     //public virtual User? User { get; set; } = null!;
 
-    public string RequestNum { get; set; } = "";
-    public DateTime CreatedOn { get; set; } = DateTime.Now;
+    //public string RequestNumber { get; set; } = "";
+    //public DateTime CreatedOn { get; set; } = DateTime.Now;
 
 }
 

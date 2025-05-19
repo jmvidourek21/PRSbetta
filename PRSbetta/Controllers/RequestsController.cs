@@ -89,46 +89,99 @@ namespace PRSbetta.Controllers
         // " R+((DateTime.Now)->string)+ (count req# +1)
 
         [HttpPost]
-        public async Task<IActionResult> CreateRequest(Request request)
+        //[HttpPost] //api/Requests/<newRequestId> 
+        public async Task<IActionResult> CreateRequest(Request newRequest)
         {
-            var now = DateTime.Now;
+            if (newRequest == null)
+                return BadRequest();
 
-            var generator = new RequestNumberGenerator(_context);
-            request.CreatedOn = now;
-            request.RequestNumber = await generator.GenerateNextRequestNumberAsync(now);
+            string todayPrefix = "R" + DateTime.UtcNow.ToString("yyMMdd");
 
-            _context.Requests.Add(request);
+            int countToday = await _context.Requests
+                .CountAsync(r => r.RequestNumber.StartsWith(todayPrefix));
+
+            string sequence = (countToday + 1).ToString("D4");
+            newRequest.RequestNumber = todayPrefix + sequence;
+
+            // Add and save the new request
+            _context.Requests.Add(newRequest);
             await _context.SaveChangesAsync();
 
-            return CreatedAtAction(nameof(GetRequestById), new { id = request.Id }, request);
+            return CreatedAtAction(nameof(GetRequest), new { id = newRequest.Id }, newRequest);
+            // Client gets a 201, Header is created /api/requests/123 
         }
 
-        public class RequestNumberGenerator
-        {
-            private readonly PrsbettaContext _context;
+        //private string getNextRequestNumber()
+        //{
+        //    // requestNumber format: R2409230011 
+        //    // 11 chars, 'R' + YYMMDD + 4 digit # w/ leading zeros 
+        //    string requestNbr = "R";
+        //    // add YYMMDD string 
+        //    DateOnly today = DateOnly.FromDateTime(DateTime.Now);
+        //    requestNbr += today.ToString("yyMMdd");
+        //    // get maximum request number from db 
+        //    string maxReqNbr = _context.Requests.Max(r => r.RequestNumber);
+        //    String reqNbr = "";
+        //    if (maxReqNbr != null)
+        //    {
+        //        // get last 4 characters, convert to number 
+        //        String tempNbr = maxReqNbr.Substring(7);
+        //        int nbr = Int32.Parse(tempNbr);
+        //        nbr++;
+        //        // pad w/ leading zeros 
+        //        reqNbr += nbr;
+        //        reqNbr = reqNbr.PadLeft(4, '0');
+        //    }
+        //    else
+        //    {
+        //        reqNbr = "0001";
+        //    }
+        //    requestNbr += reqNbr;
+        //    return requestNbr;
+        //}
 
-            public RequestNumberGenerator(PrsbettaContext context)
-            {
-                _context = context;
-            }
 
-            public async Task<string> GenerateNextRequestNumberAsync(DateTime requestDate)
-            {
-                var datePrefix = requestDate.ToString("yyMMdd"); // YYMMDD
-                var prefix = $"R{datePrefix}";
+        // // CtrlKC 5-18
+        //public async Task<IActionResult> CreateRequest(Request request)
+        //{
+        //    var now = DateTime.Now;
 
-                // Count how many requests exist for the same date
-                var count = await _context.Requests
-                    .CountAsync(r => r.CreatedOn.Date == requestDate.Date);
+        //    var generator = new RequestNumberGenerator(_context);
+        //    request.CreatedOn = now;
+        //    request.RequestNumber = await generator.GenerateNextRequestNumberAsync(now);
 
-                int sequence = count + 1;
-                string sequenceStr = sequence.ToString("D4"); // pad to 4 digits
+        //    _context.Requests.Add(request);
+        //    await _context.SaveChangesAsync();
 
-                return $"{prefix}{sequenceStr}";
-            }
-        }
+        //    return CreatedAtAction(nameof(GetRequestById), new { id = request.Id }, request);
+        //}
 
-        
+        //public class RequestNumberGenerator
+        //{
+        //    private readonly PrsbettaContext _context;
+
+        //    public RequestNumberGenerator(PrsbettaContext context)
+        //    {
+        //        _context = context;
+        //    }
+
+        //    public async Task<string> GenerateNextRequestNumberAsync(DateTime requestDate)
+        //    {
+        //        var datePrefix = requestDate.ToString("yyMMdd"); // YYMMDD
+        //        var prefix = $"R{datePrefix}";
+
+        //        // Count how many requests exist for the same date
+        //        var count = await _context.Requests
+        //            .CountAsync(r => r.CreatedOn.Date == requestDate.Date);
+
+        //        int sequence = count + 1;
+        //        string sequenceStr = sequence.ToString("D4"); // pad to 4 digits
+
+        //        return $"{prefix}{sequenceStr}";
+        //    }
+        //}
+
+
 
         //[HttpPost] //api/Requests/<newRequestId> 
 
