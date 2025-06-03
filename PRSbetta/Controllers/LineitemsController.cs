@@ -36,7 +36,7 @@ namespace PRSbetta.Controllers
         {
             var lineitem = await _context.Lineitems.FindAsync(id);
 
-            if (lineitem == null)
+            if (lineitem == null)  
             {
                 return NotFound();
             }
@@ -53,9 +53,7 @@ namespace PRSbetta.Controllers
             {
                 return BadRequest();
             }
-
             _context.Entry(lineitem).State = EntityState.Modified;
-
             try
             {
                 await _context.SaveChangesAsync();
@@ -71,7 +69,7 @@ namespace PRSbetta.Controllers
                     throw;
                 }
             }
-
+            CalcTotals(lineitem.RequestId);
             return NoContent();
         }
 
@@ -96,10 +94,9 @@ namespace PRSbetta.Controllers
             {
                 return NotFound();
             }
-
             _context.Lineitems.Remove(lineitem);
             await _context.SaveChangesAsync();
-
+            CalcTotals(lineitem.RequestId);
             return NoContent();
         }
 
@@ -107,6 +104,7 @@ namespace PRSbetta.Controllers
         {
             return _context.Lineitems.Any(e => e.Id == id);
         }
+
 private void CalcTotals(int reqID)
 {
     decimal total = (

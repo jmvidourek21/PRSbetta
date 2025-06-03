@@ -6,8 +6,10 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.EntityFrameworkCore;
 using PRSbetta.Data;
+using PRSbetta.DTO;
 using PRSbetta.Models;
 using Request = PRSbetta.Models.Request;
 
@@ -23,49 +25,17 @@ namespace PRSbetta.Controllers
         public RequestsController(PrsbettaContext context)
         {
             _context = context;
-        }  
+        }
 
         // GET: api/Requests
-        [HttpGet("Requests")]
+        [HttpGet()]
         public async Task<ActionResult<IEnumerable<Request>>> GetRequests()
         {
             return Ok(await _context.Requests.ToListAsync());
         }
 
         // GET: api/Requests/5
-        [HttpGet("Users/{id}")]
-        public async Task<ActionResult<Request>> GetRequest(int id)
-        {
-            var request = await _context.Requests.FindAsync(id);
 
-            if (request == null)
-            {
-                return NotFound();
-            }
-
-            return Ok(request);
-        }
-
-        // GET: api/Requests/5
-        ////[HttpGet("Requests/{id}/total")]
-        ////public async Task<ActionResult<decimal>> GetTotalForRequest(int requestID)
-        ////{
-        ////    var lineItems = await _context.Lineitems
-        ////        .Include(li => li.Product)
-        ////        .Where(li => li.RequestId == requestID &&
-        ////                       li.Request.Status != "REJECTED" ||
-        ////                       li.Request.Status != "APPROVED")
-        ////        .ToListAsync();
-
-        ////    if (!lineItems.Any())
-        ////    {
-        ////        return NotFound();
-        ////    }
-
-        ////    var total = lineItems.Sum(li => li.Quantity * li.Product.Price);
-
-        ////    return Ok(total);
-        ////}
 
         [HttpGet("{id}")]
         public async Task<ActionResult<Request>> GetRequestById(int id)
@@ -79,168 +49,88 @@ namespace PRSbetta.Controllers
         }
 
         // POST: api/Requests
-        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
 
+        /// <summary>
+        /// ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        //generate ReqNum (provided from prs-requirement-req-num-techspecs.doc)
 
-        //REQUEST NUMBER Formatting:
-        // =RMMDDYY####
-        // R is constant, so ....
-        // string = " R+(today "MMDDYY" from DateTime) +  0000 (need ++ from last req#)"
-        // " R+((DateTime.Now)->string)+ (count req# +1)
+        private string getNextRequestNumber()
+        {
+            // requestNumber format: R2409230011 
+            // 11 chars, 'R' + YYMMDD + 4 digit # w/ leading zeros 
+            string requestNbr = "R";
+            // add YYMMDD string 
+            DateOnly today = DateOnly.FromDateTime(DateTime.Now);
+            requestNbr += today.ToString("yyMMdd");
+            // get maximum request number from db 
+            string maxReqNbr = _context.Requests.Max(r => r.RequestNumber);
+            String reqNbr = "";
+            if (maxReqNbr != null)
+            {
+                // get last 4 characters, convert to number 
+                String tempNbr = maxReqNbr.Substring(7);
+                int nbr = Int32.Parse(tempNbr);
+                nbr++;
+                // pad w/ leading zeros 
+                reqNbr += nbr;
+                reqNbr = reqNbr.PadLeft(4, '0');
+            }
+            else
+            {
+                reqNbr = "0001";
+            }
+            requestNbr += reqNbr;
+            return requestNbr;
+        }
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
         [HttpPost]
-        //[HttpPost] //api/Requests/<newRequestId> 
-        public async Task<IActionResult> CreateRequest(Request newRequest)
+        public async Task<IActionResult> CreateRequest(RequestDTO requestDTO)
         {
-            if (newRequest == null)
-                return BadRequest();
+            // Create a new Request object from the DTO
+            var user = await _context.Users.FindAsync(requestDTO.UserId);
+            if (user == null)
+            {
+                return NotFound($"User not found for id: {requestDTO.UserId}");
+            }
 
-            string todayPrefix = "R" + DateTime.UtcNow.ToString("yyMMdd");
-
-            int countToday = await _context.Requests
-                .CountAsync(r => r.RequestNumber.StartsWith(todayPrefix));
-
-            string sequence = (countToday + 1).ToString("D4");
-            newRequest.RequestNumber = todayPrefix + sequence;
-
-            // Add and save the new request
-            _context.Requests.Add(newRequest);
+            var request = new Request
+            {
+                UserId = requestDTO.UserId,
+                Description = requestDTO.Description,
+                Justification = requestDTO.Justification,
+                DateNeeded = requestDTO.DateNeeded,
+                DeliveryMode = requestDTO.DeliveryMode,
+                Status = "NEW",
+                RequestNumber = getNextRequestNumber(),
+                Total = 0,
+                SubmittedDate = DateTime.Now
+            };
+            _context.Requests.Add(request);            // Save request
             await _context.SaveChangesAsync();
 
-            return CreatedAtAction(nameof(GetRequest), new { id = newRequest.Id }, newRequest);
-            // Client gets a 201, Header is created /api/requests/123 
+            return StatusCode(201, request);
         }
 
-        //private string getNextRequestNumber()
-        //{
-        //    // requestNumber format: R2409230011 
-        //    // 11 chars, 'R' + YYMMDD + 4 digit # w/ leading zeros 
-        //    string requestNbr = "R";
-        //    // add YYMMDD string 
-        //    DateOnly today = DateOnly.FromDateTime(DateTime.Now);
-        //    requestNbr += today.ToString("yyMMdd");
-        //    // get maximum request number from db 
-        //    string maxReqNbr = _context.Requests.Max(r => r.RequestNumber);
-        //    String reqNbr = "";
-        //    if (maxReqNbr != null)
-        //    {
-        //        // get last 4 characters, convert to number 
-        //        String tempNbr = maxReqNbr.Substring(7);
-        //        int nbr = Int32.Parse(tempNbr);
-        //        nbr++;
-        //        // pad w/ leading zeros 
-        //        reqNbr += nbr;
-        //        reqNbr = reqNbr.PadLeft(4, '0');
-        //    }
-        //    else
-        //    {
-        //        reqNbr = "0001";
-        //    }
-        //    requestNbr += reqNbr;
-        //    return requestNbr;
-        //}
-
-
-        // // CtrlKC 5-18
-        //public async Task<IActionResult> CreateRequest(Request request)
-        //{
-        //    var now = DateTime.Now;
-
-        //    var generator = new RequestNumberGenerator(_context);
-        //    request.CreatedOn = now;
-        //    request.RequestNumber = await generator.GenerateNextRequestNumberAsync(now);
-
-        //    _context.Requests.Add(request);
-        //    await _context.SaveChangesAsync();
-
-        //    return CreatedAtAction(nameof(GetRequestById), new { id = request.Id }, request);
-        //}
-
-        //public class RequestNumberGenerator
-        //{
-        //    private readonly PrsbettaContext _context;
-
-        //    public RequestNumberGenerator(PrsbettaContext context)
-        //    {
-        //        _context = context;
-        //    }
-
-        //    public async Task<string> GenerateNextRequestNumberAsync(DateTime requestDate)
-        //    {
-        //        var datePrefix = requestDate.ToString("yyMMdd"); // YYMMDD
-        //        var prefix = $"R{datePrefix}";
-
-        //        // Count how many requests exist for the same date
-        //        var count = await _context.Requests
-        //            .CountAsync(r => r.CreatedOn.Date == requestDate.Date);
-
-        //        int sequence = count + 1;
-        //        string sequenceStr = sequence.ToString("D4"); // pad to 4 digits
-
-        //        return $"{prefix}{sequenceStr}";
-        //    }
-        //}
-
-
-
-        //[HttpPost] //api/Requests/<newRequestId> 
-
-        //public async Task<IActionResult> CreateRequest(Request newRequest)
+        //public async Task<IActionResult> PostRequest(Request newRequest)
         //{
         //    if (newRequest == null)
         //        return BadRequest();
 
-        //    string todayPrefix = "R" + (DateOnly.FromDateTime(DateTime.Now).ToString("yyMMdd"));
+        //    string todayPrefix = "R" + DateTime.UtcNow.ToString("yyMMdd");
 
-        //    int newReqNum = await _context.Requests
+        //    int countToday = await _context.Requests
         //        .CountAsync(r => r.RequestNumber.StartsWith(todayPrefix));
 
-        //    string sequence = (newReqNum + 1).ToString("D4");
+        //    string sequence = (countToday + 1).ToString("D4");
         //    newRequest.RequestNumber = todayPrefix + sequence;
 
         //    // Add and save the new request
         //    _context.Requests.Add(newRequest);
         //    await _context.SaveChangesAsync();
 
-        //    return CreatedAtAction(nameof(GetRequest), new { id = newRequest.Id }, newRequest);
+        //    return CreatedAtAction(nameof(GetRequestById), new { id = newRequest.Id }, newRequest);
         //    // Client gets a 201, Header is created /api/requests/123 
-        //}
-
-
-
-        //private string 
-        //    getNextRequestNumber()
-        //{
-        //    Start with "R" + today's date string requestNbr = "R" + DateOnly.FromDateTime(DateTime.Now).ToString("yyMMdd");
-
-        //string? maxReqNbr = _context.Requests
-        //                    .Where(r => r.RequestNumber.StartsWith(requestNbr))
-        //                    .Max(r => r.RequestNumber);
-
-        //string reqNbr = !string.IsNullOrEmpty(maxReqNbr)
-        //    ? (int.Parse(maxReqNbr.Substring(7)) + 1).ToString().PadLeft(4, '0')
-        //    : "0001"; // Start fresh if nothing exists
-
-        //return requestNbr + reqNbr;
-
-
-
-
-
-
-
-
-
-
-        //    {
-        //    newRequest.Status = "NEW";
-        //    newRequest.Total = 0;
-        //    newRequest.RequestNumber = "R00000000000";
-        //    newRequest.SubmittedDate = DateTime.Now;
-        //    _context.Requests.Add(newRequest);
-        //    await _context.SaveChangesAsync();
-        //    return CreatedAtAction("GetRequest", new { id = newRequest.Id }, newRequest);
-
         //}
 
 
@@ -266,11 +156,49 @@ namespace PRSbetta.Controllers
         }
         // PUT: api/Requests/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
+        [HttpPut("{id}")]
+        public async Task<IActionResult> PutRequest(int id, Request request)
+        {
+            if (id != request.Id)
+            {
+                return BadRequest();
+            }
+
+            _context.Entry(request).State = EntityState.Modified;
+
+            try
+            {
+                await _context.SaveChangesAsync();
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                if (!RequestExists(id))
+                {
+                    return NotFound();
+                }
+                else
+                {
+                    throw;
+                }
+            }
+
+            return NoContent();
+
+        }
+
+        private bool RequestExists(int id)
+        {
+            return _context.Requests.Any(e => e.Id == id);
+        }
+
+
+
+
         [HttpPut("approve/{id}")]
         public async Task<IActionResult> ApproveRequest(int id)
         {
             var request = await _context.Requests.FindAsync(id);
-            if (request == null) 
+            if (request == null)
                 return NotFound();
 
             request.Status = "APPROVED";
@@ -283,10 +211,10 @@ namespace PRSbetta.Controllers
         public async Task<IActionResult> SubmitForReview(int id)
         {
             var request = await _context.Requests.FindAsync(id);
-            if (request == null) 
+            if (request == null)
                 return NotFound();
 
-            request.Status = (request.Total >= 50 ? "REVIEW" : "APPROVE");
+            request.Status = (request.Total > 50 ? "REVIEW" : "APPROVE");
             request.SubmittedDate = DateTime.Now;
 
             await _context.SaveChangesAsync();
@@ -301,94 +229,22 @@ namespace PRSbetta.Controllers
                 .ToListAsync();
         }
 
-
         [HttpPut("reject/{id}")]
-        public async Task<IActionResult> RejectRequest(int id)
+        public ActionResult SetAsRejected(int id, [FromBody] string reason)
         {
-            var request = await _context.Requests.FindAsync(id);
-            if (request == null) return NotFound();
-
-            // Read body manually
-            using var reader = new StreamReader(Request.Body);
-            var body = await reader.ReadToEndAsync();
-
-            // Parse JSON to get the "reason" field
-            var json = JsonDocument.Parse(body);
-            if (!json.RootElement.TryGetProperty("reason", out var reasonElement))
+            var request = _context.Requests.Find(id);
+            if (request == null)
             {
-                return BadRequest(new { error = "Missing 'reason' in body" });
+                return NotFound();
+            }
+            else
+            {
+
+                request.Status = "REJECTED";
+                request.ReasonForRejection = reason;
+                return Ok();
             }
 
-            var reason = reasonElement.GetString();
-
-            // Apply changes
-            request.Status = "REJECTED";
-            request.ReasonForRejection = reason;
-
-            await _context.SaveChangesAsync();
-            return NoContent();
         }
-
     }
 }
-
-
-//REQUEST NUMBER Formatting:
-// =RMMDDYY####
-// R is constant, so ....
-// string = " R+(today MMDDYY from DateTime) + 0000 (need ++ from last req#)"
-// " R+(DateOnly.FromDateTime(DateTime.Now))+ 
-
-
-
-
-
-
-
-
-
-
-//LIMIT REQUEST FIELDS ENTERED BY USER (REQ. CREATE/POST)
-
-//SUBMIT FOR REVIEW (PURCH. REQ.)
-
-//REQUEST REVIEW (PURCH. REQ.)
-////SHOW REQUESTS IN REVIEW STATUS AND NOT ASSIGNED TO LOGGED IN USER
-
-
-//REQUEST APPROVE (PURCH. REQ.)
-////REQUEST PASSED IN BODY---SET STATUS TO "APPROVED"---RETURN REQUEST
-
-//REQUEST REJECT (PURCH. REQ.)
-////REQUEST PASSED IN BODY---SET STATUS TO "REJECTED"---REASONFORREJECTION WILL COME FROM FRONT END RETURN REQUEST
-///
-
-
-////////guidance from Kory////////
-////LIMIT REQUEST FIELDS ENTERED BY USER (REQ. CREATE/POST)
-//this is where you would use a DTO to choose the fields you would like to pass rather than all of them . 
-
-////SUBMIT FOR REVIEW (PURCH. REQ.)
-//you are going to create a variable. Then use a ternary operator to set the status based on if the total is over or under 50.
-
-
-
-////REQUEST REVIEW (PURCH. REQ.)
-
-//////SHOW REQUESTS IN REVIEW STATUS AND NOT ASSIGNED TO LOGGED IN USER
-//create a variable that finds the userId in the user table.
-//then check for null and if so, return NotFound().
-//then create another variable that checks Request with a where statement to match the status field for REVIEW and the userId being equal and return to a list. 
-
-////REQUEST APPROVE (PURCH. REQ.)
-
-//////REQUEST PASSED IN BODY---SET STATUS TO "APPROVED"---RETURN REQUEST
-//create a variable that find the requestid
-//if null, notfound
-//updates status to APPROVED
-//and saves changes. (await _context.SaveChangesAsync().
-
-////REQUEST REJECT (PURCH. REQ.)
-
-//////REQUEST PASSED IN BODY---SET STATUS TO "REJECTED"---REASONFORREJECTION WILL COME FROM FRONT END RETURN REQUEST
-//reject is much the same as approve with the exception of changing the status to REJECTED and saving the reason. 

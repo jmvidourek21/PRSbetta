@@ -72,28 +72,6 @@ namespace PRSbetta.Controllers
             return NoContent();
         }
 
-        [HttpPut("Vendors/{id}")]
-        public async Task<IActionResult> UpdateVendor(int id, Vendor updateVendor)
-        {
-            if (id != updateVendor.Id)
-                return BadRequest();
-
-            var vendor = await _context.Vendors.FindAsync(id);
-            if (vendor == null)
-                return NotFound();
-
-            vendor.Name = updateVendor.Name;
-            vendor.Address = updateVendor.Address;
-            vendor.City = updateVendor.City;
-            vendor.State = updateVendor.State;
-            vendor.Zip = updateVendor.Zip;
-            vendor.PhoneNumber = updateVendor.PhoneNumber;
-            vendor.Email = updateVendor.Email;
-            await _context.SaveChangesAsync();
-
-            return NoContent();
-        }
-
         // POST: api/Vendors
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPost]

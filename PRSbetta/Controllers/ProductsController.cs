@@ -39,7 +39,7 @@ namespace PRSbetta.Controllers
                 .Include(p => p.Vendor);
             if (productDetails == null)
                 return NotFound();
-            return Ok(await productDetails.ToListAsync());
+            return Ok(await productDetails.FirstOrDefaultAsync());
         }
 
         // PUT: api/Products/5

@@ -47,7 +47,7 @@ namespace PRSbetta.Controllers
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
 
 
-        [HttpPut("Users/{id}")]
+        [HttpPut("{id}")]           ////correction from mike 5/19 pm
         public async Task<IActionResult> PutUser(int id, User updatesUser)
         {
             if (id != updatesUser.Id)
