@@ -230,7 +230,7 @@ namespace PRSbetta.Controllers
         }
 
         [HttpPut("reject/{id}")]
-        public ActionResult SetAsRejected(int id, [FromBody] string reason)
+        public async Task<ActionResult> SetAsRejected(int id, [FromBody] string reason)
         {
             var request = _context.Requests.Find(id);
             if (request == null)
@@ -242,7 +242,8 @@ namespace PRSbetta.Controllers
 
                 request.Status = "REJECTED";
                 request.ReasonForRejection = reason;
-                return Ok();
+               await _context.SaveChangesAsync();
+                return NoContent();
             }
 
         }
