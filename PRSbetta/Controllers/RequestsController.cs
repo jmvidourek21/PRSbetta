@@ -242,7 +242,7 @@ namespace PRSbetta.Controllers
 
                 request.Status = "REJECTED";
                 request.ReasonForRejection = reason;
-               await _context.SaveChangesAsync();
+                await _context.SaveChangesAsync();
                 return NoContent();
             }
 
